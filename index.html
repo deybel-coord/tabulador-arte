@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard · Sueldos y Tabulador — Departamento de Arte</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#181b24; --panel2:#1f2330; --ink:#e8eaf0; --muted:#9aa0b4;
+    --line:#2a2f3d; --accent:#ff6b9d; --accent2:#5ed0ff; --accent3:#ffd166; --green:#4ade80; --red:#f87171;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.5}
+  header{padding:28px 28px 10px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:22px;font-weight:700}
+  .sub{color:var(--muted);font-size:13px;margin-top:4px}
+  .tabs{display:flex;gap:6px;padding:14px 28px 0;flex-wrap:wrap}
+  .tab{padding:9px 18px;border-radius:9px 9px 0 0;background:var(--panel);color:var(--muted);cursor:pointer;font-size:14px;font-weight:600;border:1px solid var(--line);border-bottom:none}
+  .tab.active{background:var(--panel2);color:var(--ink)}
+  main{padding:22px 28px 60px}
+  .page{display:none} .page.active{display:block}
+  .grid{display:grid;gap:16px}
+  .kpis{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .kpi .n{font-size:34px;font-weight:800;letter-spacing:-.5px}
+  .kpi .l{color:var(--muted);font-size:12.5px;margin-top:2px}
+  .kpi .n.pink{color:var(--accent)} .kpi .n.blue{color:var(--accent2)} .kpi .n.yellow{color:var(--accent3)} .kpi .n.green{color:var(--green)}
+  h2{font-size:15px;margin:0 0 14px;font-weight:700}
+  .sec-title{font-size:13px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--accent2);margin:26px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  .sec-title.pink{color:var(--accent)}
+  .two{grid-template-columns:1.4fr 1fr}
+  .three{grid-template-columns:repeat(3,1fr)}
+  @media(max-width:880px){.two,.three{grid-template-columns:1fr}}
+  .chart-wrap{position:relative;height:340px}
+  .chart-wrap.tall{height:430px}
+  .up{color:var(--green)}
+  .badge{display:inline-block;background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:2px 10px;font-size:11px;color:var(--muted);margin-left:6px}
+  .quote{background:var(--panel2);border-left:3px solid var(--accent);border-radius:8px;padding:12px 14px;margin-bottom:10px}
+  .quote .p{font-size:11.5px;color:var(--accent2);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .quote .tags{color:var(--muted);font-weight:600}
+  .quote .tag{display:inline-block;background:#232838;border:1px solid var(--line);border-radius:20px;padding:1px 8px;margin-left:4px;color:var(--accent3);text-transform:none;letter-spacing:0}
+  .quote .t{font-size:13.5px;white-space:pre-line}
+  .filters{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+  label.fl{color:var(--muted);font-size:13px;margin-right:8px}
+  select{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:13px}
+  .note{color:var(--muted);font-size:12px;margin-top:10px}
+  .legend-row{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:middle}
+  .toggle{display:inline-flex;gap:4px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:4px}
+  .toggle button{background:transparent;border:none;color:var(--muted);font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:7px;cursor:pointer}
+  .toggle button.active{background:var(--accent);color:#12131a}
+  .cnt{color:var(--muted);font-size:12px;margin-bottom:10px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Sueldos y Tabulador — Departamento de Arte</h1>
+  <div class="sub">Resultados de la encuesta · <b id="hTotal"></b> respuestas · Cifras = <b>valor típico (mediana)</b>, redondeado · Julio 2026</div>
+</header>
+<div class="tabs">
+  <div class="tab active" data-p="dash">Dashboard general</div>
+  <div class="tab" data-p="viaticos">Análisis de viáticos</div>
+  <div class="tab" data-p="abiertas">Respuestas abiertas</div>
+</div>
+<main>
+
+<!-- ================= HOJA 1 ================= -->
+<section class="page active" id="dash">
+  <div class="grid kpis" style="margin-bottom:16px">
+    <div class="card kpi"><div class="n pink" id="kTotal"></div><div class="l">Respuestas totales</div></div>
+    <div class="card kpi"><div class="n blue" id="kPuestos"></div><div class="l">Puestos representados</div></div>
+  </div>
+
+  <div class="grid two" style="margin-bottom:16px">
+    <div class="card">
+      <h2>Muestra por tipo de puesto</h2>
+      <div class="chart-wrap tall"><canvas id="chPuesto"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Tipo de producción trabajada <span class="badge">respuesta múltiple</span></h2>
+      <div class="chart-wrap"><canvas id="chTipo"></canvas></div>
+      <div class="note">Cada persona pudo marcar más de un tipo de producción.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px">
+      <h2 style="margin:0">Sueldo actual vs. propuesto por puesto (MXN)</h2>
+      <div class="toggle" id="tgSueldo">
+        <button class="active" data-t="General">General</button>
+        <button data-t="Publicidad Nacional">Pub. Nacional</button>
+        <button data-t="Publicidad Service">Pub. Service</button>
+        <button data-t="Serie o Película">Serie/Película</button>
+      </div>
+    </div>
+    <div class="chart-wrap tall"><canvas id="chSueldo"></canvas></div>
+    <div class="legend-row">
+      <span><span class="dot" style="background:#5ed0ff"></span>Actual (mediana)</span>
+      <span><span class="dot" style="background:#ff6b9d"></span>Propuesto / tabulador (mediana)</span>
+    </div>
+    <div class="note" id="noteSueldo"></div>
+  </div>
+</section>
+
+<!-- ================= HOJA 2 ================= -->
+<section class="page" id="viaticos">
+
+  <div class="sec-title">🍽️ Viáticos de comida</div>
+  <div class="grid kpis" style="margin-bottom:16px">
+    <div class="card kpi"><div class="n blue" id="vLocal"></div><div class="l">Comida LOCAL · valor típico/día</div></div>
+    <div class="card kpi"><div class="n yellow" id="vFuera"></div><div class="l">Comida FUERA de CDMX · valor típico/día</div></div>
+  </div>
+  <div class="grid two" style="margin-bottom:8px">
+    <div class="card">
+      <h2>Monto propuesto de comida (MXN/día)</h2>
+      <div class="chart-wrap"><canvas id="chComidaMonto"></canvas></div>
+      <div class="legend-row">
+        <span><span class="dot" style="background:#9aa0b4"></span>Mínimo</span>
+        <span><span class="dot" style="background:#ffd166"></span>Mediana</span>
+        <span><span class="dot" style="background:#ff6b9d"></span>Máximo</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>¿Te han pagado la comida en proyectos recientes?</h2>
+      <div class="chart-wrap"><canvas id="chComidaPago"></canvas></div>
+      <div class="note">Respuestas acumuladas sobre los 3 tipos de producción.</div>
+    </div>
+  </div>
+  <div class="grid two">
+    <div class="card">
+      <h2>Comida local propuesta por puesto (MXN/día)</h2>
+      <div class="chart-wrap tall"><canvas id="chComidaPuesto"></canvas></div>
+    </div>
+    <div class="card"><h2>Lectura rápida — comida</h2><div id="notasComida"></div></div>
+  </div>
+
+  <div class="sec-title pink">🚕 Apoyo para taxi</div>
+  <div class="grid kpis" style="margin-bottom:16px">
+    <div class="card kpi"><div class="n pink" id="vTaxi"></div><div class="l">Taxi · valor típico/día</div></div>
+    <div class="card kpi"><div class="n red" id="vTaxiNunca"></div><div class="l">Dice que NUNCA se lo pagan</div></div>
+  </div>
+  <div class="grid two" style="margin-bottom:8px">
+    <div class="card">
+      <h2>Monto propuesto de taxi (MXN/día)</h2>
+      <div class="chart-wrap"><canvas id="chTaxiMonto"></canvas></div>
+      <div class="legend-row">
+        <span><span class="dot" style="background:#9aa0b4"></span>Mínimo</span>
+        <span><span class="dot" style="background:#ffd166"></span>Mediana</span>
+        <span><span class="dot" style="background:#ff6b9d"></span>Máximo</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>¿Te han pagado el taxi en proyectos recientes?</h2>
+      <div class="chart-wrap"><canvas id="chTaxiPago"></canvas></div>
+    </div>
+  </div>
+  <div class="grid two">
+    <div class="card">
+      <h2>Taxi propuesto por puesto (MXN/día)</h2>
+      <div class="chart-wrap tall"><canvas id="chTaxiPuesto"></canvas></div>
+    </div>
+    <div class="card"><h2>Lectura rápida — taxi</h2><div id="notasTaxi"></div></div>
+  </div>
+</section>
+
+<!-- ================= HOJA 3 ================= -->
+<section class="page" id="abiertas">
+  <div class="card">
+    <div class="filters">
+      <div><label class="fl">Puesto:</label>
+        <select id="fPuesto"><option value="__all">Todos los puestos</option></select></div>
+      <div><label class="fl">Tema:</label>
+        <select id="fTema"><option value="__all">Todos los temas</option></select></div>
+    </div>
+    <div class="cnt" id="qCount"></div>
+    <div id="quotes"></div>
+  </div>
+</section>
+
+</main>
+<script>
+const D = {"total_resp": 104, "puesto_counts": {"Swings": 31, "1er Asistente de Decoración": 19, "Decorador(a)": 19, "Coordinador(a)": 8, "Onset": 7, "Diseñador Gráfico": 7, "Director(a) de Arte": 4, "Asistente de Coordinación": 3, "Prop Master": 3, "Apoyos": 2, "Asistente de Prop": 1}, "tipo_counts": {"Publicidad Nacional": 62, "Publicidad Service": 57, "Serie o Película": 80}, "sueldos_general": {"Decorador(a)": {"actual": 20000, "actual_n": 49, "deseado": 22000, "deseado_n": 45}, "1er Asistente de Decoración": {"actual": 13000, "actual_n": 49, "deseado": 15000, "deseado_n": 50}, "Prop Master": {"actual": 15000, "actual_n": 7, "deseado": 18000, "deseado_n": 7}, "Asistente de Prop": {"actual": 10000, "actual_n": 3, "deseado": 12000, "deseado_n": 3}, "Coordinador(a)": {"actual": 15000, "actual_n": 20, "deseado": 17000, "deseado_n": 20}, "Asistente de Coordinación": {"actual": 10000, "actual_n": 9, "deseado": 10500, "deseado_n": 9}, "Onset": {"actual": 3000, "actual_n": 19, "deseado": 4000, "deseado_n": 20}, "Swings": {"actual": 1800, "actual_n": 90, "deseado": 2500, "deseado_n": 91}, "Apoyos": {"actual": 1000, "actual_n": 4, "deseado": 1200, "deseado_n": 6}, "Director(a) de Arte": {"actual": 25000, "actual_n": 9, "deseado": 37500, "deseado_n": 8}, "Diseñador Gráfico": {"actual": 12000, "actual_n": 19, "deseado": 16500, "deseado_n": 18}}, "sueldos_por_tipo": {"Publicidad Nacional": {"Decorador(a)": {"actual": 20000, "actual_n": 16, "deseado": 22000, "deseado_n": 16}, "1er Asistente de Decoración": {"actual": 12000, "actual_n": 17, "deseado": 14000, "deseado_n": 17}, "Prop Master": {"actual": 11000, "actual_n": 2, "deseado": 14500, "deseado_n": 2}, "Asistente de Prop": {"actual": 10000, "actual_n": 1, "deseado": 12000, "deseado_n": 1}, "Coordinador(a)": {"actual": 15000, "actual_n": 7, "deseado": 16000, "deseado_n": 7}, "Asistente de Coordinación": {"actual": 10000, "actual_n": 3, "deseado": 10500, "deseado_n": 3}, "Onset": {"actual": 3000, "actual_n": 6, "deseado": 4000, "deseado_n": 7}, "Swings": {"actual": 1800, "actual_n": 31, "deseado": 2500, "deseado_n": 30}, "Apoyos": {"actual": 1000, "actual_n": 1, "deseado": 1200, "deseado_n": 2}, "Director(a) de Arte": {"actual": 22000, "actual_n": 3, "deseado": 30000, "deseado_n": 3}, "Diseñador Gráfico": {"actual": 11000, "actual_n": 6, "deseado": 16500, "deseado_n": 6}}, "Publicidad Service": {"Decorador(a)": {"actual": 22000, "actual_n": 15, "deseado": 25000, "deseado_n": 15}, "1er Asistente de Decoración": {"actual": 14000, "actual_n": 17, "deseado": 15000, "deseado_n": 17}, "Prop Master": {"actual": 14000, "actual_n": 2, "deseado": 18000, "deseado_n": 2}, "Asistente de Prop": {"actual": 10000, "actual_n": 1, "deseado": 12000, "deseado_n": 1}, "Coordinador(a)": {"actual": 15000, "actual_n": 7, "deseado": 17000, "deseado_n": 7}, "Asistente de Coordinación": {"actual": 10000, "actual_n": 3, "deseado": 11000, "deseado_n": 3}, "Onset": {"actual": 3000, "actual_n": 7, "deseado": 4000, "deseado_n": 7}, "Swings": {"actual": 2000, "actual_n": 31, "deseado": 2500, "deseado_n": 31}, "Apoyos": {"actual": 1000, "actual_n": 2, "deseado": 1400, "deseado_n": 2}, "Director(a) de Arte": {"actual": 25000, "actual_n": 3, "deseado": 37500, "deseado_n": 2}, "Diseñador Gráfico": {"actual": 12000, "actual_n": 6, "deseado": 15500, "deseado_n": 6}}, "Serie o Película": {"Decorador(a)": {"actual": 20000, "actual_n": 18, "deseado": 23500, "deseado_n": 14}, "1er Asistente de Decoración": {"actual": 13000, "actual_n": 15, "deseado": 15000, "deseado_n": 16}, "Prop Master": {"actual": 15000, "actual_n": 3, "deseado": 20000, "deseado_n": 3}, "Asistente de Prop": {"actual": 11000, "actual_n": 1, "deseado": 14000, "deseado_n": 1}, "Coordinador(a)": {"actual": 15000, "actual_n": 6, "deseado": 17000, "deseado_n": 6}, "Asistente de Coordinación": {"actual": 10000, "actual_n": 3, "deseado": 11000, "deseado_n": 3}, "Onset": {"actual": 2800, "actual_n": 6, "deseado": 3500, "deseado_n": 6}, "Swings": {"actual": 1800, "actual_n": 28, "deseado": 2500, "deseado_n": 30}, "Apoyos": {"actual": 1200, "actual_n": 1, "deseado": 1200, "deseado_n": 2}, "Director(a) de Arte": {"actual": 25000, "actual_n": 3, "deseado": 45000, "deseado_n": 3}, "Diseñador Gráfico": {"actual": 14000, "actual_n": 7, "deseado": 17500, "deseado_n": 6}}}, "vi_stats": {"Comida local": {"mediana": 150, "min": 100, "max": 750, "moda": 150, "n": 100}, "Comida fuera CDMX": {"mediana": 300, "min": 120, "max": 750, "moda": 300, "n": 102}, "Taxi": {"mediana": 150, "min": 100, "max": 600, "moda": 150, "n": 97}}, "vi_local_puesto": {"Coordinador(a)": 150, "Asistente de Coordinación": 150, "Swings": 150, "Apoyos": 150, "1er Asistente de Decoración": 150, "Onset": 150, "Decorador(a)": 150, "Asistente de Prop": 200, "Prop Master": 180, "Director(a) de Arte": 300, "Diseñador Gráfico": 150}, "vi_taxi_puesto": {"Coordinador(a)": 150, "Asistente de Coordinación": 150, "Swings": 150, "Apoyos": 150, "1er Asistente de Decoración": 150, "Onset": 150, "Decorador(a)": 150, "Asistente de Prop": 150, "Prop Master": 150, "Director(a) de Arte": 150, "Diseñador Gráfico": 150}, "pago_freq": {"Viático x comida (local)": {"Sí, siempre": 105, "Casi siempre": 53, "A veces": 88, "Nunca": 43}, "Viático x comida (fuera de CDMX)": {"Sí, siempre": 142, "Casi siempre": 56, "A veces": 52, "Nunca": 26}, "Apoyo para taxi": {"Sí, siempre": 71, "Casi siempre": 52, "A veces": 88, "Nunca": 70}}, "abiertas": [{"puesto": "Asistente de Coordinación", "texto": "Gracias por hacer esto", "temas": ["Agradecimiento"]}, {"puesto": "Asistente de Coordinación", "texto": "Gracias por hacer esto, eres la mejor", "temas": ["Agradecimiento"]}, {"puesto": "Swings", "texto": "Que sea considerado el turno de 10 oh 12 horas y después paguen tiempo extra si no quieren pagar un buen sueldo", "temas": ["Horas extra y jornada", "Sueldos y tabulador"]}, {"puesto": "Swings", "texto": "Entrega de viaticos al comenzar proyecto, taxis conforme su uso y el sueldo que no rebace los 15 dias despues del último día del proyecto", "temas": ["Plazos de pago", "Viáticos y taxi", "Sueldos y tabulador"]}, {"puesto": "Swings", "texto": "Pues lo justo sería no trabajar más de 12 horas", "temas": ["Horas extra y jornada"]}, {"puesto": "Swings", "texto": "Es importante entender que la mayoría de swings vivimos lejos de la zona céntrica en donde más frecuentemente se hacen la filmaciones y en taxis salimos poniendo dinero de nuestra bolsa para llegar e irnos de la locación", "temas": ["Viáticos y taxi"]}, {"puesto": "Swings", "texto": "Q sean reales,no solo mito...", "temas": ["Otros"]}, {"puesto": "Decorador(a)", "texto": "Se tiene que definir el\nNúmero de horas por jornada y empezar a pedir el pago de horas extras y sobre todo llamarle a los plazos de pago CRÉDITO que es lo que son y pedir intereses a partir de más de 30 días desde la filmación para su pago total", "temas": ["Horas extra y jornada", "Plazos de pago"]}, {"puesto": "Swings", "texto": "Solo retomar lo de taxis de 250 a 300 por taxi seria la media neutral, para los que incluso vienen de fuera y les cuesta mas el auto o gasolin en el caso se los que tienen algun transporte propio seria ms justo", "temas": ["Viáticos y taxi"]}, {"puesto": "Apoyos", "texto": "Aumentar más sobre sueldo y viáticos y también horas extras cumpliendo un horario real y acordado", "temas": ["Horas extra y jornada", "Viáticos y taxi", "Sueldos y tabulador"]}, {"puesto": "Decorador(a)", "texto": "Solo pido que los salarios sean justos y condiciones de trabajo dignas.", "temas": ["Sueldos y tabulador", "Condiciones y seguridad"]}, {"puesto": "Swings", "texto": "Deben cambiar conforme a todo lo que sube casa año", "temas": ["Otros"]}, {"puesto": "1er Asistente de Decoración", "texto": "Que deje de existir el pago a 90 dias", "temas": ["Plazos de pago"]}, {"puesto": "Coordinador(a)", "texto": "Considero que se debe crear el puesto de Gerencia de Arte, porque si existe para producción y no para nuestro departamento? Cada vez se nos exigen más y más controles, trámites y obligaciones que solían ser de otros departamentos.", "temas": ["Otros"]}, {"puesto": "Decorador(a)", "texto": "Horas extras pagadas", "temas": ["Horas extra y jornada", "Sueldos y tabulador"]}, {"puesto": "Swings", "texto": "Las rentas hay directoras que si acabas a las 4 o 5 de la tarde salen con que te pagan menos por que fue medio día", "temas": ["Sueldos y tabulador"]}, {"puesto": "Decorador(a)", "texto": "Pagar a 30 días no 60 días", "temas": ["Plazos de pago", "Sueldos y tabulador"]}, {"puesto": "Decorador(a)", "texto": "Pagar los insumos herramientas de trabajo", "temas": ["Sueldos y tabulador"]}, {"puesto": "1er Asistente de Decoración", "texto": "Estos tabuladores tendrían que quedar solo como sueldo base/mínimo, si alguien cobra más o le pagan más por experiencia, amistad o lo que sea, ya es un beneficio extra y es válido, solo es que nadie cobre menos que eso... Con una experiencia mínima de 5 años", "temas": ["Sueldos y tabulador", "Experiencia (senior/junior)"]}, {"puesto": "Swings", "texto": "Todo ya está caro el sueldo sigue siendo el último en los 10 años y todo lo demás está caro", "temas": ["Sueldos y tabulador", "Experiencia (senior/junior)"]}, {"puesto": "Decorador(a)", "texto": "Tengo muchas observaciones, sabiendo que es un primer paso. Algo fundamental es que se  tiene que tomar muy en cuenta que dentro de los sueldos se debería de dividir en Senior y Junior, pues no es lo mismo una Decoradora con estudios y años de experiencia, que una decoradora en su segundo proyecto y sin estudios relacionados con el Arte y el Cine.\nIgual que no es lo mismo un swing con 15 años de experiencia, que el que lleva 2 años.\nEstaría bueno incluir a todo el departamento, como Diseñadores Gráficos y sus asistentes, Renderistas, Bodegueros…\nGracias por dar el primer paso!!", "temas": ["Sueldos y tabulador", "Experiencia (senior/junior)", "Agradecimiento"]}, {"puesto": "Decorador(a)", "texto": "Que no nos quiten viaticos a decoradoras y nadie.", "temas": ["Viáticos y taxi"]}, {"puesto": "Swings", "texto": "Establecer un tabulador para viaticos. Y alimentos, en series y películas ya prácticamente no hay pago de box rental. Ya en muchos proyectos ya no otorgan ni taxis ni viaticos .", "temas": ["Viáticos y taxi", "Sueldos y tabulador"]}, {"puesto": "Swings", "texto": "Las jornadas de trabajo que no pasen de 10 o 12 horas", "temas": ["Horas extra y jornada"]}, {"puesto": "Swings", "texto": "Que siempre gastan más en cosas que ni se usan pero siempre dicen q no hay presupuesto para los q trabajamos y siempres pagan menos", "temas": ["Sueldos y tabulador"]}, {"puesto": "Onset", "texto": "Solo q suban los sueldos por q están muy bajos", "temas": ["Sueldos y tabulador"]}, {"puesto": "Asistente de Prop", "texto": "Considerar el internet también como herramienta de trabajo. Podría agregarse además de los viáticos, algún paquete de datos móviles mientras se hace la preproducción.", "temas": ["Viáticos y taxi"]}, {"puesto": "Prop Master", "texto": "Un pago no mayor a 30 días", "temas": ["Plazos de pago"]}, {"puesto": "1er Asistente de Decoración", "texto": "Tener un acuerdo no implícito de nuestra comunidad que mientras más aceptemos salarios bajos, más los seguirán ofreciendo. Gracias por hacer esta comunidad más justa Zin 🩷", "temas": ["Sueldos y tabulador", "Agradecimiento"]}, {"puesto": "1er Asistente de Decoración", "texto": "considerar un extra por días trabajados a partir del 4to día después de filmación si el proyecto no se ha cerrado", "temas": ["Otros"]}, {"puesto": "Swings", "texto": "Deberíamos Estipular las cantidades de horas que cubren esos honorarios y establecer un tabulador para horas extra", "temas": ["Horas extra y jornada", "Sueldos y tabulador"]}, {"puesto": "Decorador(a)", "texto": "Debemos cobrar horas extras, las publicidades nacionales se abusan, y ya cuentan con nuestras horas extras desde un principio, no es que el rodaje se complicó y por eso se extiende, presupuestan y hacen planes de 18-20hs", "temas": ["Horas extra y jornada", "Sueldos y tabulador"]}, {"puesto": "Prop Master", "texto": "Horas extras, se entiende que no se pagan igual que a staff pero debería haber de parte de las productoras mas consideración a arte", "temas": ["Horas extra y jornada", "Sueldos y tabulador"]}, {"puesto": "Swings", "texto": "Deberían considerar buen sueldo por el horario que aveces se maneja y si no es así,pues que respeten 12 horas y lo demás que sean tiempo extra", "temas": ["Horas extra y jornada", "Sueldos y tabulador"]}, {"puesto": "Director(a) de Arte", "texto": "Box rental", "temas": ["Viáticos y taxi"]}, {"puesto": "Director(a) de Arte", "texto": "No", "temas": ["Otros"]}, {"puesto": "Onset", "texto": "Estos sueldos es importante mencionar las cualidades de cada empleado", "temas": ["Sueldos y tabulador", "Experiencia (senior/junior)"]}, {"puesto": "Decorador(a)", "texto": "Los pagos a 30/60 y 90 días deben de dejar de existir. Trabajo terminado trabajo pagado", "temas": ["Plazos de pago", "Sueldos y tabulador"]}, {"puesto": "Director(a) de Arte", "texto": "Ahora las pre producciones son cada vez más cortas", "temas": ["Horas extra y jornada"]}, {"puesto": "1er Asistente de Decoración", "texto": "También trabajo como diseñadora gráfica y los sueldos están super bajos, la última vez ganaba 9000 a la semana, y bajo a 8000", "temas": ["Sueldos y tabulador"]}, {"puesto": "Decorador(a)", "texto": "Debería de haber una casilla con el mínimo a cobrar.", "temas": ["Sueldos y tabulador"]}, {"puesto": "Diseñador Gráfico", "texto": "El diseñador gráfico debería tener siempre un seguro para su equipo por parte de la producción y el pago de su taxi ya que suelen enviarnos a bodegas muy lejanas y en zonas peligrosas. También creo que si las bodegas son tan lejos y en zonas peligrosas el diseñador debería trabajar en casa para evitar el traslado que siempre hacemos por nuestra cuenta junto con nuestros equipos arriesgándonos diariamente.\n\nOtro punto importante es que necesitamos que las bodegas en donde trabajamos sean espacios dignos con los servicios básicos y que no estén en mal estado. En mi experiencia siempre son edificios ya muy deteriorados y en más de dos ocaciones con daños estructurales. Para mí eso es muy peligroso estando en una zona altamente sísmica, todos los trabajadores de una producción merecemos un trato digno por parte de las productoras", "temas": ["Viáticos y taxi", "Condiciones y seguridad", "Experiencia (senior/junior)"]}, {"puesto": "Diseñador Gráfico", "texto": "El puesto de diseñador gráfico está muy castigado, los horarios son extensos y la paga muy baja en relación al trabajo que se realiza; en cuanto a apoyo económico para comida/pasajes - asignación de transporte, al estar en oficina nunca se nos han dado, cuestión que debería ser diferente ya que la mayoría del crew tiene acceso a catering, un transporte o en su caso viáticos. Nuestros traslados a bodegas y oficinas la mayoría de las veces es bastante complicado en cuanto a distancias y la necesidad de trasladar nuestros equipos de trabajo (laptop, tabletas, etc), que en su mayoría no se encuentran asegurados por las producciones.", "temas": ["Horas extra y jornada", "Viáticos y taxi", "Sueldos y tabulador", "Condiciones y seguridad"]}, {"puesto": "Diseñador Gráfico", "texto": "Los horarios son muy extensos considerando que como freelance no deberiamos tener horario solo funciones por cumplir, los sabados deberian ser libres", "temas": ["Horas extra y jornada"]}, {"puesto": "Decorador(a)", "texto": "Considero que se necesita una conversación amplia al respecto. No todos deben ni podemos ganar lo mismo, depende de la experiencia y el tipo de proyecto. Pero está muy bien que por algo se empiece, les agradezco mucho el esfuerzo.", "temas": ["Experiencia (senior/junior)"]}], "tema_counts": {"Agradecimiento": 4, "Horas extra y jornada": 13, "Sueldos y tabulador": 24, "Plazos de pago": 6, "Viáticos y taxi": 10, "Otros": 5, "Condiciones y seguridad": 3, "Experiencia (senior/junior)": 6}, "n_abiertas": 45};
+document.getElementById('hTotal').textContent = D.total_resp;
+const money = n => n==null? '—' : '$'+Number(n).toLocaleString('es-MX');
+Chart.defaults.color='#9aa0b4'; Chart.defaults.font.family="-apple-system,Segoe UI,Roboto,sans-serif";
+const GRID='#2a2f3d';
+
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active'); document.getElementById(t.dataset.p).classList.add('active');
+}));
+
+// ===== HOJA 1 KPIs =====
+document.getElementById('kTotal').textContent=D.total_resp;
+document.getElementById('kPuestos').textContent=Object.keys(D.puesto_counts).length;
+
+// Muestra por puesto
+const pE=Object.entries(D.puesto_counts).sort((a,b)=>b[1]-a[1]);
+new Chart(document.getElementById('chPuesto'),{type:'bar',
+  data:{labels:pE.map(x=>x[0]),datasets:[{data:pE.map(x=>x[1]),backgroundColor:'#ff6b9d',borderRadius:6}]},
+  options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw+' respuestas ('+(100*c.raw/D.total_resp).toFixed(0)+'%)'}}},
+    scales:{x:{grid:{color:GRID},ticks:{precision:0}},y:{grid:{display:false}}}}});
+
+// Tipo de produccion
+const tE=Object.entries(D.tipo_counts).sort((a,b)=>b[1]-a[1]);
+new Chart(document.getElementById('chTipo'),{type:'bar',
+  data:{labels:tE.map(x=>x[0]),datasets:[{data:tE.map(x=>x[1]),backgroundColor:['#5ed0ff','#ffd166','#ff6b9d'],borderRadius:6}]},
+  options:{plugins:{legend:{display:false}},scales:{y:{grid:{color:GRID},ticks:{precision:0}},x:{grid:{display:false}}}}});
+
+// Sueldo con toggle
+let chSueldo;
+function drawSueldo(sel){
+  const src = sel==='General'? D.sueldos_general : D.sueldos_por_tipo[sel];
+  const e=Object.entries(src).filter(x=>x[1].deseado!=null||x[1].actual!=null)
+          .sort((a,b)=>(b[1].deseado||b[1].actual)-(a[1].deseado||a[1].actual));
+  const labels=e.map(x=>x[0]);
+  const dsAct=e.map(x=>x[1].actual), dsDes=e.map(x=>x[1].deseado);
+  const notes={
+    'General':'⚠️ La vista <b>General</b> mezcla unidades: en <b>Publicidad Nacional</b> y <b>Publicidad Service</b> los sueldos son <b>por día de filmación</b>, mientras que en <b>Serie/Película</b> son <b>por semana</b>. Para comparar de forma justa, usa las pestañas por tipo de producción.',
+    'Publicidad Nacional':'Cifra = mediana redondeada · montos <b>por día de filmación</b>.',
+    'Publicidad Service':'Cifra = mediana redondeada · montos <b>por día de filmación</b>.',
+    'Serie o Película':'Cifra = mediana redondeada · montos <b>por semana</b>.'};
+  document.getElementById('noteSueldo').innerHTML=notes[sel];
+  const unit = sel==='Serie o Película' ? '/semana' : (sel==='General' ? '' : '/día');
+  if(chSueldo) chSueldo.destroy();
+  chSueldo=new Chart(document.getElementById('chSueldo'),{type:'bar',
+    data:{labels,datasets:[
+      {label:'Actual',data:dsAct,backgroundColor:'#5ed0ff',borderRadius:5},
+      {label:'Propuesto',data:dsDes,backgroundColor:'#ff6b9d',borderRadius:5}]},
+    options:{indexAxis:'y',plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>c.dataset.label+': '+money(c.raw)+unit}}},
+      scales:{x:{grid:{color:GRID},ticks:{callback:v=>'$'+(v/1000)+'k'}},y:{grid:{display:false}}}}});
+}
+drawSueldo('General');
+document.querySelectorAll('#tgSueldo button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('#tgSueldo button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); drawSueldo(b.dataset.t);
+}));
+
+// ===== HOJA 2 =====
+const fo=['Sí, siempre','Casi siempre','A veces','Nunca'];
+const fcol={'Sí, siempre':'#4ade80','Casi siempre':'#5ed0ff','A veces':'#ffd166','Nunca':'#f87171'};
+const sum=o=>Object.values(o).reduce((a,b)=>a+b,0);
+const pct=(o,k)=>Math.round(100*o[k]/sum(o));
+
+// --- Comida ---
+document.getElementById('vLocal').textContent=money(D.vi_stats['Comida local'].mediana);
+document.getElementById('vFuera').textContent=money(D.vi_stats['Comida fuera CDMX'].mediana);
+const ck=['Comida local','Comida fuera CDMX'];
+new Chart(document.getElementById('chComidaMonto'),{type:'bar',
+  data:{labels:ck,datasets:[
+    {label:'Mínimo',data:ck.map(k=>D.vi_stats[k].min),backgroundColor:'#9aa0b4',borderRadius:4},
+    {label:'Mediana',data:ck.map(k=>D.vi_stats[k].mediana),backgroundColor:'#ffd166',borderRadius:4},
+    {label:'Máximo',data:ck.map(k=>D.vi_stats[k].max),backgroundColor:'#ff6b9d',borderRadius:4}]},
+  options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+': '+money(c.raw)}}},
+    scales:{y:{grid:{color:GRID},ticks:{callback:v=>'$'+v}},x:{grid:{display:false}}}}});
+const ckPago=['Viático x comida (local)','Viático x comida (fuera de CDMX)'];
+new Chart(document.getElementById('chComidaPago'),{type:'bar',
+  data:{labels:['Comida local','Comida fuera CDMX'],datasets:fo.map(f=>({label:f,data:ckPago.map(k=>D.pago_freq[k][f]),backgroundColor:fcol[f]}))},
+  options:{plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}}},
+    scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:GRID}}}}});
+const clE=Object.entries(D.vi_local_puesto).sort((a,b)=>b[1]-a[1]);
+new Chart(document.getElementById('chComidaPuesto'),{type:'bar',
+  data:{labels:clE.map(x=>x[0]),datasets:[{data:clE.map(x=>x[1]),backgroundColor:'#ffd166',borderRadius:5}]},
+  options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>money(c.raw)+'/día'}}},
+    scales:{x:{grid:{color:GRID},ticks:{callback:v=>'$'+v}},y:{grid:{display:false}}}}});
+const pl=D.pago_freq['Viático x comida (local)'], pf=D.pago_freq['Viático x comida (fuera de CDMX)'];
+document.getElementById('notasComida').innerHTML=`
+  <div class="quote"><div class="t">El consenso para <b>comida local</b> es <b>${money(D.vi_stats['Comida local'].mediana)}/día</b>, subiendo a <b>${money(D.vi_stats['Comida fuera CDMX'].mediana)}</b> cuando el rodaje es fuera de CDMX.</div></div>
+  <div class="quote"><div class="t">La comida <b>fuera de CDMX</b> es de los viáticos mejor cubiertos: <b>${pct(pf,'Sí, siempre')}%</b> la recibe siempre.</div></div>
+  <div class="quote"><div class="t">Aun así, <b>${pct(pl,'Nunca')}%</b> dice que la comida local <b>nunca</b> se la pagan.</div></div>
+  <div class="quote"><div class="t">Puestos de oficina/bodega (<b>Diseñador Gráfico</b>, <b>Director de Arte</b>) piden los montos más altos por traslados largos con equipo.</div></div>`;
+
+// --- Taxi ---
+document.getElementById('vTaxi').textContent=money(D.vi_stats['Taxi'].mediana);
+const tx=D.pago_freq['Apoyo para taxi'];
+document.getElementById('vTaxiNunca').textContent=pct(tx,'Nunca')+'%';
+new Chart(document.getElementById('chTaxiMonto'),{type:'bar',
+  data:{labels:['Apoyo taxi'],datasets:[
+    {label:'Mínimo',data:[D.vi_stats['Taxi'].min],backgroundColor:'#9aa0b4',borderRadius:4},
+    {label:'Mediana',data:[D.vi_stats['Taxi'].mediana],backgroundColor:'#ffd166',borderRadius:4},
+    {label:'Máximo',data:[D.vi_stats['Taxi'].max],backgroundColor:'#ff6b9d',borderRadius:4}]},
+  options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+': '+money(c.raw)}}},
+    scales:{y:{grid:{color:GRID},ticks:{callback:v=>'$'+v}},x:{grid:{display:false}}}}});
+new Chart(document.getElementById('chTaxiPago'),{type:'bar',
+  data:{labels:['Apoyo para taxi'],datasets:fo.map(f=>({label:f,data:[tx[f]],backgroundColor:fcol[f]}))},
+  options:{indexAxis:'y',plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}}},
+    scales:{x:{stacked:true,grid:{color:GRID}},y:{stacked:true,grid:{display:false}}}}});
+const txE=Object.entries(D.vi_taxi_puesto).sort((a,b)=>b[1]-a[1]);
+new Chart(document.getElementById('chTaxiPuesto'),{type:'bar',
+  data:{labels:txE.map(x=>x[0]),datasets:[{data:txE.map(x=>x[1]),backgroundColor:'#ff6b9d',borderRadius:5}]},
+  options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>money(c.raw)+'/día'}}},
+    scales:{x:{grid:{color:GRID},ticks:{callback:v=>'$'+v}},y:{grid:{display:false}}}}});
+document.getElementById('notasTaxi').innerHTML=`
+  <div class="quote"><div class="t">El apoyo de taxi propuesto ronda los <b>${money(D.vi_stats['Taxi'].mediana)}/día</b>, aunque varios piden que se pague <b>lo que marque el Uber/Didi</b>.</div></div>
+  <div class="quote"><div class="t">Es el viático <b>más incumplido</b>: <b>${pct(tx,'Nunca')}%</b> dice que <b>nunca</b> se lo pagan y solo <b>${pct(tx,'Sí, siempre')}%</b> lo recibe siempre.</div></div>
+  <div class="quote"><div class="t">Los <b>Swings</b> insisten en que viven lejos del centro y hoy pagan el traslado de su bolsillo.</div></div>`;
+
+// ===== HOJA 3 =====
+const selP=document.getElementById('fPuesto'), selT=document.getElementById('fTema');
+[...new Set(D.abiertas.map(a=>a.puesto))].sort().forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;selP.appendChild(o);});
+Object.entries(D.tema_counts).sort((a,b)=>b[1]-a[1]).forEach(([t,n])=>{const o=document.createElement('option');o.value=t;o.textContent=t+' ('+n+')';selT.appendChild(o);});
+function render(){
+  const fp=selP.value, ft=selT.value;
+  const list=D.abiertas.filter(a=>(fp==='__all'||a.puesto===fp)&&(ft==='__all'||a.temas.includes(ft)));
+  document.getElementById('qCount').textContent=list.length+' de '+D.abiertas.length+' comentarios';
+  const box=document.getElementById('quotes');box.innerHTML='';
+  list.forEach(a=>{
+    const d=document.createElement('div');d.className='quote';
+    const tags=a.temas.map(t=>'<span class="tag">'+t+'</span>').join('');
+    d.innerHTML='<div class="p">'+a.puesto+' <span class="tags">'+tags+'</span></div><div class="t"></div>';
+    d.querySelector('.t').textContent=a.texto;box.appendChild(d);
+  });
+}
+selP.addEventListener('change',render); selT.addEventListener('change',render); render();
+</script>
+</body>
+</html>
