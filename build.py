@@ -23,9 +23,21 @@ def norm_puesto(x):
          'Coordinadora':'Coordinador(a)', 'Coordinador(a)':'Coordinador(a)'}
     return m.get(x, x)
 
-df['PUESTO'] = df.iloc[:,-1].combine_first(df.iloc[:,2]).map(norm_puesto)
-df['TIPOS'] = df.iloc[:,1].fillna('').apply(lambda s: [t.strip() for t in str(s).split(';') if t.strip()])
-df['ABIERTA'] = df[cols[-2]]
+# --- Deteccion por NOMBRE (robusta a cambios de posicion/columnas) ---
+# El formulario tiene la pregunta de puesto repetida (dos columnas); las combinamos.
+puesto_cols = [c for c in cols if str(c).strip().startswith('¿Cuál es tu puesto principal?')]
+if not puesto_cols:
+    raise SystemExit('No encontre la columna de puesto ("¿Cuál es tu puesto principal?")')
+_pser = None
+for pc in puesto_cols:                      # columnas posteriores tienen prioridad
+    _pser = df[pc] if _pser is None else df[pc].combine_first(_pser)
+df['PUESTO'] = _pser.map(norm_puesto)
+
+_tipos_col = next((c for c in cols if 'tipos de proyecto' in str(c)), cols[1])
+df['TIPOS'] = df[_tipos_col].fillna('').apply(lambda s: [t.strip() for t in str(s).split(';') if t.strip()])
+
+_abierta_col = next((c for c in cols if 'Algo más que quieras agregar' in str(c)), cols[-2])
+df['ABIERTA'] = df[_abierta_col]
 
 def to_amount(x):
     if pd.isna(x): return np.nan
