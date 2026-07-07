@@ -1,4 +1,196 @@
-<!DOCTYPE html>
+# -*- coding: utf-8 -*-
+# build.py - Baja el CSV publicado, reconstruye el dashboard (index.html).
+# Uso: python build.py   (requiere pandas, numpy)
+
+# -*- coding: utf-8 -*-
+import pandas as pd, re, json, numpy as np
+
+import os
+# ================== ORIGEN DE LOS DATOS ==================
+# Pega aqui la URL del CSV PUBLICADO de tu Google Sheet
+# (Archivo -> Compartir -> Publicar en la web -> CSV).
+# Tambien puedes definir la variable de entorno CSV_URL para sobreescribirla.
+CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vToeiwDkNiA157XK8l0CMiDNuehd71dzGwASKv_HTeXOSYwf0OB3Y7kJfrLP7B7OzmY_2g8QeAiBMaz/pub?output=csv"
+SOURCE = os.environ.get("CSV_URL", CSV_URL)
+print("Leyendo datos de:", SOURCE)
+df = pd.read_csv(SOURCE)
+cols = list(df.columns)
+
+def norm_puesto(x):
+    if pd.isna(x): return None
+    x = str(x).strip()
+    m = {'Decoradora':'Decorador(a)', 'Decorador(a)':'Decorador(a)',
+         'Coordinadora':'Coordinador(a)', 'Coordinador(a)':'Coordinador(a)'}
+    return m.get(x, x)
+
+df['PUESTO'] = df.iloc[:,-1].combine_first(df.iloc[:,2]).map(norm_puesto)
+df['TIPOS'] = df.iloc[:,1].fillna('').apply(lambda s: [t.strip() for t in str(s).split(';') if t.strip()])
+df['ABIERTA'] = df[cols[-2]]
+
+def to_amount(x):
+    if pd.isna(x): return np.nan
+    s = str(x).lower().strip()
+    if s in ('', '—', '-', 'nan'): return np.nan
+    s2 = s.replace(',', '').replace('$', '').replace(' ', '')
+    mk = re.search(r'(\d+(?:\.\d+)?)\s*k', s)
+    if mk: return float(mk.group(1)) * 1000
+    if 'mil' in s:
+        mm = re.search(r'(\d+(?:\.\d+)?)', s2)
+        if mm:
+            v = float(mm.group(1)); return v*1000 if v < 100 else v
+    m = re.search(r'(\d+(?:\.\d+)?)', s2)
+    return float(m.group(1)) if m else np.nan
+
+def rnd(v, base):
+    if v is None or (isinstance(v,float) and np.isnan(v)): return None
+    return int(round(v/base)*base)
+
+# ---------- VIÁTICOS montos deseados ----------
+vi_local_c = [c for c in cols if 'comida (local)' in c and 'de cu' in c.lower()][0]
+vi_fuera_c = [c for c in cols if 'fuera de CDMX' in c and 'de cu' in c.lower()][0]
+vi_taxi_c  = [c for c in cols if 'Apoyo para taxi' in c and 'de cu' in c.lower()][0]
+def clean_viatico(x):
+    if pd.isna(x): return np.nan
+    m = re.search(r'(\d[\d,\.]*)', str(x).replace(' ',''))
+    if not m: return np.nan
+    v = float(m.group(1).replace(',',''))
+    return np.nan if v > 2000 else v
+df['VI_LOCAL']=df[vi_local_c].apply(clean_viatico)
+df['VI_FUERA']=df[vi_fuera_c].apply(clean_viatico)
+df['VI_TAXI'] =df[vi_taxi_c].apply(clean_viatico)
+
+# ---------- frecuencia de pago ----------
+pago_cols=[c for c in cols if '¿Te los han pagado' in c]
+concepts={'Viático x comida (local)':[], 'Viático x comida (fuera de CDMX)':[], 'Apoyo para taxi':[]}
+for c in pago_cols:
+    for k in concepts:
+        if k in c: concepts[k].append(c)
+freq_order=['Sí, siempre','Casi siempre','A veces','Nunca']
+def freq_counts(cn):
+    vals=pd.concat([df[c] for c in cn]).dropna().astype(str).str.strip()
+    out={f:0 for f in freq_order}
+    for v in vals:
+        if v in out: out[v]+=1
+    return out
+pago_freq={k:freq_counts(v) for k,v in concepts.items()}
+
+# ---------- frecuencia de pago POR TIPO DE PRODUCCIÓN ----------
+tipos_prod=['Publicidad Nacional','Publicidad Service','Serie o Película']
+pago_by_tipo={tp:{'comida':{f:0 for f in freq_order},'taxi':{f:0 for f in freq_order}} for tp in tipos_prod}
+for c in pago_cols:
+    tp=next((t for t in tipos_prod if c.startswith('['+t+']')),None)
+    if tp is None: continue
+    grupo='taxi' if 'Apoyo para taxi' in c else 'comida'
+    for v in df[c].dropna().astype(str).str.strip():
+        if v in freq_order: pago_by_tipo[tp][grupo][v]+=1
+
+# ---------- SUELDOS ----------
+roles=['Decoradora','1er Asistente de Decoración','2do Asistente de Decoración','Comprador',
+       'Prop Master','Asistente de Prop','Coordinadora','Asistente de Coordinación','Onset',
+       'Swings','Apoyos','Diseñador(a) de Producción','Director(a) de Arte','Diseñador Gráfico']
+tipos=['Publicidad Nacional','Publicidad Service','Serie o Película']
+salary_map={}
+for idx,c in enumerate(cols):
+    m=re.search(r'\[(.*?)\] ¿Cuánto ganas actualmente como (.*?)\? \(MXN\)', c)
+    if m: salary_map[(m.group(1),m.group(2))]=(c, cols[idx+1] if idx+1<len(cols) else None)
+def role_norm(r): return {'Decoradora':'Decorador(a)','Coordinadora':'Coordinador(a)'}.get(r,r)
+
+# base de redondeo por rol (día vs proyecto)
+per_day = {'Swings','Onset','Apoyos'}
+def salbase(rn): return 100 if rn in per_day else 500
+
+# General (todos los tipos) y por tipo
+def collect(role, tipo=None):
+    act, deb = [], []
+    tps = [tipo] if tipo else tipos
+    for tp in tps:
+        key=(tp,role)
+        if key in salary_map:
+            ac,dc=salary_map[key]
+            act+=[v for v in df[ac].apply(to_amount).dropna() if v>=1000]
+            if dc: deb+=[v for v in df[dc].apply(to_amount).dropna() if v>=1000]
+    return act, deb
+
+# agrupar roles normalizados
+role_groups={}
+for r in roles:
+    role_groups.setdefault(role_norm(r), []).append(r)
+
+def summarize(tipo=None):
+    out={}
+    for rn, members in role_groups.items():
+        act,deb=[],[]
+        for r in members:
+            a,d=collect(r,tipo); act+=a; deb+=d
+        if act or deb:
+            b=salbase(rn)
+            out[rn]={
+                'actual':rnd(np.median(act),b) if act else None, 'actual_n':len(act),
+                'deseado':rnd(np.median(deb),b) if deb else None, 'deseado_n':len(deb)}
+    return out
+
+sueldos_general = summarize(None)
+sueldos_por_tipo = {tp: summarize(tp) for tp in tipos}
+
+# ---------- CONTEOS ----------
+puesto_counts=df['PUESTO'].value_counts().to_dict()
+total_resp=len(df)
+tipo_counts={}
+for lst in df['TIPOS']:
+    for t in lst: tipo_counts[t]=tipo_counts.get(t,0)+1
+
+# ---------- VIÁTICOS stats (mediana como cifra principal) ----------
+def vstats(series, base=10):
+    s=series.dropna()
+    if len(s)==0: return None
+    return {'mediana':rnd(s.median(),base),'min':int(s.min()),'max':int(s.max()),
+            'moda':int(s.mode().iloc[0]) if len(s.mode()) else None,'n':int(len(s))}
+vi_stats={'Comida local':vstats(df['VI_LOCAL']),'Comida fuera CDMX':vstats(df['VI_FUERA']),'Taxi':vstats(df['VI_TAXI'])}
+
+def vi_by_puesto(col, base=10):
+    d={}
+    for p,v in zip(df['PUESTO'], df[col]):
+        if pd.isna(p) or pd.isna(v): continue
+        d.setdefault(p,[]).append(v)
+    return {k:rnd(np.median(v),base) for k,v in d.items()}
+vi_local_puesto=vi_by_puesto('VI_LOCAL')
+vi_taxi_puesto =vi_by_puesto('VI_TAXI')
+
+# ---------- TEMAS de respuestas abiertas ----------
+TEMAS = {
+ 'Horas extra y jornada': ['hora','jornada','turno','tiempo extra','12 h','10 h','18-20','extensos','sabado','sábado'],
+ 'Plazos de pago': ['30 días','60 días','90 días','30/60','crédito','credito','plazo','no mayor a','15 dias','15 días','pago a','trabajo pagado','intereses','pagado'],
+ 'Viáticos y taxi': ['viatic','viátic','taxi','uber','didi','comida','alimento','traslado','gasolin','transporte','box rental','pasaje','datos móviles','internet'],
+ 'Sueldos y tabulador': ['sueldo','salario','tabulador','cobrar','cobre','paga','mínimo','minimo','bajos','base','cantidad'],
+ 'Condiciones y seguridad': ['seguro','bodega','peligros','digno','condicion','equipo','sísmic','sismic','estructural','trato','riesgo'],
+ 'Experiencia (senior/junior)': ['experiencia','senior','junior','años','estudios','cualidades'],
+ 'Agradecimiento': ['gracias'],
+}
+def clasifica(t):
+    tl=t.lower()
+    temas=[nom for nom,kws in TEMAS.items() if any(k in tl for k in kws)]
+    return temas if temas else ['Otros']
+
+abiertas=[]
+for p,t in zip(df['PUESTO'], df['ABIERTA']):
+    if pd.isna(t) or not str(t).strip(): continue
+    txt=str(t).strip()
+    abiertas.append({'puesto':(p if pd.notna(p) else 'Sin especificar'),'texto':txt,'temas':clasifica(txt)})
+
+tema_counts={}
+for a in abiertas:
+    for tm in a['temas']: tema_counts[tm]=tema_counts.get(tm,0)+1
+
+data={'total_resp':total_resp,'puesto_counts':puesto_counts,'tipo_counts':tipo_counts,
+      'sueldos_general':sueldos_general,'sueldos_por_tipo':sueldos_por_tipo,
+      'vi_stats':vi_stats,'vi_local_puesto':vi_local_puesto,'vi_taxi_puesto':vi_taxi_puesto,
+      'pago_freq':pago_freq,'pago_by_tipo':pago_by_tipo,'abiertas':abiertas,'tema_counts':tema_counts,'n_abiertas':len(abiertas)}
+
+import json
+d = data
+DATA = json.dumps(d, ensure_ascii=False)
+
+html = r'''<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -206,7 +398,7 @@
 
 </main>
 <script>
-const D = {"total_resp": 104, "puesto_counts": {"Swings": 31, "1er Asistente de Decoración": 19, "Decorador(a)": 19, "Coordinador(a)": 8, "Onset": 7, "Diseñador Gráfico": 7, "Director(a) de Arte": 4, "Asistente de Coordinación": 3, "Prop Master": 3, "Apoyos": 2, "Asistente de Prop": 1}, "tipo_counts": {"Publicidad Nacional": 62, "Publicidad Service": 57, "Serie o Película": 80}, "sueldos_general": {"Decorador(a)": {"actual": 20000, "actual_n": 49, "deseado": 22000, "deseado_n": 45}, "1er Asistente de Decoración": {"actual": 13000, "actual_n": 49, "deseado": 15000, "deseado_n": 50}, "Prop Master": {"actual": 15000, "actual_n": 7, "deseado": 18000, "deseado_n": 7}, "Asistente de Prop": {"actual": 10000, "actual_n": 3, "deseado": 12000, "deseado_n": 3}, "Coordinador(a)": {"actual": 15000, "actual_n": 20, "deseado": 17000, "deseado_n": 20}, "Asistente de Coordinación": {"actual": 10000, "actual_n": 9, "deseado": 10500, "deseado_n": 9}, "Onset": {"actual": 3000, "actual_n": 19, "deseado": 4000, "deseado_n": 20}, "Swings": {"actual": 1800, "actual_n": 90, "deseado": 2500, "deseado_n": 91}, "Apoyos": {"actual": 1000, "actual_n": 4, "deseado": 1200, "deseado_n": 6}, "Director(a) de Arte": {"actual": 25000, "actual_n": 9, "deseado": 37500, "deseado_n": 8}, "Diseñador Gráfico": {"actual": 12000, "actual_n": 19, "deseado": 16500, "deseado_n": 18}}, "sueldos_por_tipo": {"Publicidad Nacional": {"Decorador(a)": {"actual": 20000, "actual_n": 16, "deseado": 22000, "deseado_n": 16}, "1er Asistente de Decoración": {"actual": 12000, "actual_n": 17, "deseado": 14000, "deseado_n": 17}, "Prop Master": {"actual": 11000, "actual_n": 2, "deseado": 14500, "deseado_n": 2}, "Asistente de Prop": {"actual": 10000, "actual_n": 1, "deseado": 12000, "deseado_n": 1}, "Coordinador(a)": {"actual": 15000, "actual_n": 7, "deseado": 16000, "deseado_n": 7}, "Asistente de Coordinación": {"actual": 10000, "actual_n": 3, "deseado": 10500, "deseado_n": 3}, "Onset": {"actual": 3000, "actual_n": 6, "deseado": 4000, "deseado_n": 7}, "Swings": {"actual": 1800, "actual_n": 31, "deseado": 2500, "deseado_n": 30}, "Apoyos": {"actual": 1000, "actual_n": 1, "deseado": 1200, "deseado_n": 2}, "Director(a) de Arte": {"actual": 22000, "actual_n": 3, "deseado": 30000, "deseado_n": 3}, "Diseñador Gráfico": {"actual": 11000, "actual_n": 6, "deseado": 16500, "deseado_n": 6}}, "Publicidad Service": {"Decorador(a)": {"actual": 22000, "actual_n": 15, "deseado": 25000, "deseado_n": 15}, "1er Asistente de Decoración": {"actual": 14000, "actual_n": 17, "deseado": 15000, "deseado_n": 17}, "Prop Master": {"actual": 14000, "actual_n": 2, "deseado": 18000, "deseado_n": 2}, "Asistente de Prop": {"actual": 10000, "actual_n": 1, "deseado": 12000, "deseado_n": 1}, "Coordinador(a)": {"actual": 15000, "actual_n": 7, "deseado": 17000, "deseado_n": 7}, "Asistente de Coordinación": {"actual": 10000, "actual_n": 3, "deseado": 11000, "deseado_n": 3}, "Onset": {"actual": 3000, "actual_n": 7, "deseado": 4000, "deseado_n": 7}, "Swings": {"actual": 2000, "actual_n": 31, "deseado": 2500, "deseado_n": 31}, "Apoyos": {"actual": 1000, "actual_n": 2, "deseado": 1400, "deseado_n": 2}, "Director(a) de Arte": {"actual": 25000, "actual_n": 3, "deseado": 37500, "deseado_n": 2}, "Diseñador Gráfico": {"actual": 12000, "actual_n": 6, "deseado": 15500, "deseado_n": 6}}, "Serie o Película": {"Decorador(a)": {"actual": 20000, "actual_n": 18, "deseado": 23500, "deseado_n": 14}, "1er Asistente de Decoración": {"actual": 13000, "actual_n": 15, "deseado": 15000, "deseado_n": 16}, "Prop Master": {"actual": 15000, "actual_n": 3, "deseado": 20000, "deseado_n": 3}, "Asistente de Prop": {"actual": 11000, "actual_n": 1, "deseado": 14000, "deseado_n": 1}, "Coordinador(a)": {"actual": 15000, "actual_n": 6, "deseado": 17000, "deseado_n": 6}, "Asistente de Coordinación": {"actual": 10000, "actual_n": 3, "deseado": 11000, "deseado_n": 3}, "Onset": {"actual": 2800, "actual_n": 6, "deseado": 3500, "deseado_n": 6}, "Swings": {"actual": 1800, "actual_n": 28, "deseado": 2500, "deseado_n": 30}, "Apoyos": {"actual": 1200, "actual_n": 1, "deseado": 1200, "deseado_n": 2}, "Director(a) de Arte": {"actual": 25000, "actual_n": 3, "deseado": 45000, "deseado_n": 3}, "Diseñador Gráfico": {"actual": 14000, "actual_n": 7, "deseado": 17500, "deseado_n": 6}}}, "vi_stats": {"Comida local": {"mediana": 150, "min": 100, "max": 750, "moda": 150, "n": 100}, "Comida fuera CDMX": {"mediana": 300, "min": 120, "max": 750, "moda": 300, "n": 102}, "Taxi": {"mediana": 150, "min": 100, "max": 600, "moda": 150, "n": 97}}, "vi_local_puesto": {"Coordinador(a)": 150, "Asistente de Coordinación": 150, "Swings": 150, "Apoyos": 150, "1er Asistente de Decoración": 150, "Onset": 150, "Decorador(a)": 150, "Asistente de Prop": 200, "Prop Master": 180, "Director(a) de Arte": 300, "Diseñador Gráfico": 150}, "vi_taxi_puesto": {"Coordinador(a)": 150, "Asistente de Coordinación": 150, "Swings": 150, "Apoyos": 150, "1er Asistente de Decoración": 150, "Onset": 150, "Decorador(a)": 150, "Asistente de Prop": 150, "Prop Master": 150, "Director(a) de Arte": 150, "Diseñador Gráfico": 150}, "pago_freq": {"Viático x comida (local)": {"Sí, siempre": 105, "Casi siempre": 53, "A veces": 88, "Nunca": 43}, "Viático x comida (fuera de CDMX)": {"Sí, siempre": 142, "Casi siempre": 56, "A veces": 52, "Nunca": 26}, "Apoyo para taxi": {"Sí, siempre": 71, "Casi siempre": 52, "A veces": 88, "Nunca": 70}}, "pago_by_tipo": {"Publicidad Nacional": {"comida": {"Sí, siempre": 87, "Casi siempre": 33, "A veces": 50, "Nunca": 15}, "taxi": {"Sí, siempre": 20, "Casi siempre": 22, "A veces": 33, "Nunca": 19}}, "Publicidad Service": {"comida": {"Sí, siempre": 100, "Casi siempre": 41, "A veces": 32, "Nunca": 14}, "taxi": {"Sí, siempre": 36, "Casi siempre": 19, "A veces": 23, "Nunca": 14}}, "Serie o Película": {"comida": {"Sí, siempre": 60, "Casi siempre": 35, "A veces": 58, "Nunca": 40}, "taxi": {"Sí, siempre": 15, "Casi siempre": 11, "A veces": 32, "Nunca": 37}}}, "abiertas": [{"puesto": "Asistente de Coordinación", "texto": "Gracias por hacer esto", "temas": ["Agradecimiento"]}, {"puesto": "Asistente de Coordinación", "texto": "Gracias por hacer esto, eres la mejor", "temas": ["Agradecimiento"]}, {"puesto": "Swings", "texto": "Que sea considerado el turno de 10 oh 12 horas y después paguen tiempo extra si no quieren pagar un buen sueldo", "temas": ["Horas extra y jornada", "Sueldos y tabulador"]}, {"puesto": "Swings", "texto": "Entrega de viaticos al comenzar proyecto, taxis conforme su uso y el sueldo que no rebace los 15 dias despues del último día del proyecto", "temas": ["Plazos de pago", "Viáticos y taxi", "Sueldos y tabulador"]}, {"puesto": "Swings", "texto": "Pues lo justo sería no trabajar más de 12 horas", "temas": ["Horas extra y jornada"]}, {"puesto": "Swings", "texto": "Es importante entender que la mayoría de swings vivimos lejos de la zona céntrica en donde más frecuentemente se hacen la filmaciones y en taxis salimos poniendo dinero de nuestra bolsa para llegar e irnos de la locación", "temas": ["Viáticos y taxi"]}, {"puesto": "Swings", "texto": "Q sean reales,no solo mito...", "temas": ["Otros"]}, {"puesto": "Decorador(a)", "texto": "Se tiene que definir el\nNúmero de horas por jornada y empezar a pedir el pago de horas extras y sobre todo llamarle a los plazos de pago CRÉDITO que es lo que son y pedir intereses a partir de más de 30 días desde la filmación para su pago total", "temas": ["Horas extra y jornada", "Plazos de pago"]}, {"puesto": "Swings", "texto": "Solo retomar lo de taxis de 250 a 300 por taxi seria la media neutral, para los que incluso vienen de fuera y les cuesta mas el auto o gasolin en el caso se los que tienen algun transporte propio seria ms justo", "temas": ["Viáticos y taxi"]}, {"puesto": "Apoyos", "texto": "Aumentar más sobre sueldo y viáticos y también horas extras cumpliendo un horario real y acordado", "temas": ["Horas extra y jornada", "Viáticos y taxi", "Sueldos y tabulador"]}, {"puesto": "Decorador(a)", "texto": "Solo pido que los salarios sean justos y condiciones de trabajo dignas.", "temas": ["Sueldos y tabulador", "Condiciones y seguridad"]}, {"puesto": "Swings", "texto": "Deben cambiar conforme a todo lo que sube casa año", "temas": ["Otros"]}, {"puesto": "1er Asistente de Decoración", "texto": "Que deje de existir el pago a 90 dias", "temas": ["Plazos de pago"]}, {"puesto": "Coordinador(a)", "texto": "Considero que se debe crear el puesto de Gerencia de Arte, porque si existe para producción y no para nuestro departamento? Cada vez se nos exigen más y más controles, trámites y obligaciones que solían ser de otros departamentos.", "temas": ["Otros"]}, {"puesto": "Decorador(a)", "texto": "Horas extras pagadas", "temas": ["Horas extra y jornada", "Sueldos y tabulador"]}, {"puesto": "Swings", "texto": "Las rentas hay directoras que si acabas a las 4 o 5 de la tarde salen con que te pagan menos por que fue medio día", "temas": ["Sueldos y tabulador"]}, {"puesto": "Decorador(a)", "texto": "Pagar a 30 días no 60 días", "temas": ["Plazos de pago", "Sueldos y tabulador"]}, {"puesto": "Decorador(a)", "texto": "Pagar los insumos herramientas de trabajo", "temas": ["Sueldos y tabulador"]}, {"puesto": "1er Asistente de Decoración", "texto": "Estos tabuladores tendrían que quedar solo como sueldo base/mínimo, si alguien cobra más o le pagan más por experiencia, amistad o lo que sea, ya es un beneficio extra y es válido, solo es que nadie cobre menos que eso... Con una experiencia mínima de 5 años", "temas": ["Sueldos y tabulador", "Experiencia (senior/junior)"]}, {"puesto": "Swings", "texto": "Todo ya está caro el sueldo sigue siendo el último en los 10 años y todo lo demás está caro", "temas": ["Sueldos y tabulador", "Experiencia (senior/junior)"]}, {"puesto": "Decorador(a)", "texto": "Tengo muchas observaciones, sabiendo que es un primer paso. Algo fundamental es que se  tiene que tomar muy en cuenta que dentro de los sueldos se debería de dividir en Senior y Junior, pues no es lo mismo una Decoradora con estudios y años de experiencia, que una decoradora en su segundo proyecto y sin estudios relacionados con el Arte y el Cine.\nIgual que no es lo mismo un swing con 15 años de experiencia, que el que lleva 2 años.\nEstaría bueno incluir a todo el departamento, como Diseñadores Gráficos y sus asistentes, Renderistas, Bodegueros…\nGracias por dar el primer paso!!", "temas": ["Sueldos y tabulador", "Experiencia (senior/junior)", "Agradecimiento"]}, {"puesto": "Decorador(a)", "texto": "Que no nos quiten viaticos a decoradoras y nadie.", "temas": ["Viáticos y taxi"]}, {"puesto": "Swings", "texto": "Establecer un tabulador para viaticos. Y alimentos, en series y películas ya prácticamente no hay pago de box rental. Ya en muchos proyectos ya no otorgan ni taxis ni viaticos .", "temas": ["Viáticos y taxi", "Sueldos y tabulador"]}, {"puesto": "Swings", "texto": "Las jornadas de trabajo que no pasen de 10 o 12 horas", "temas": ["Horas extra y jornada"]}, {"puesto": "Swings", "texto": "Que siempre gastan más en cosas que ni se usan pero siempre dicen q no hay presupuesto para los q trabajamos y siempres pagan menos", "temas": ["Sueldos y tabulador"]}, {"puesto": "Onset", "texto": "Solo q suban los sueldos por q están muy bajos", "temas": ["Sueldos y tabulador"]}, {"puesto": "Asistente de Prop", "texto": "Considerar el internet también como herramienta de trabajo. Podría agregarse además de los viáticos, algún paquete de datos móviles mientras se hace la preproducción.", "temas": ["Viáticos y taxi"]}, {"puesto": "Prop Master", "texto": "Un pago no mayor a 30 días", "temas": ["Plazos de pago"]}, {"puesto": "1er Asistente de Decoración", "texto": "Tener un acuerdo no implícito de nuestra comunidad que mientras más aceptemos salarios bajos, más los seguirán ofreciendo. Gracias por hacer esta comunidad más justa Zin 🩷", "temas": ["Sueldos y tabulador", "Agradecimiento"]}, {"puesto": "1er Asistente de Decoración", "texto": "considerar un extra por días trabajados a partir del 4to día después de filmación si el proyecto no se ha cerrado", "temas": ["Otros"]}, {"puesto": "Swings", "texto": "Deberíamos Estipular las cantidades de horas que cubren esos honorarios y establecer un tabulador para horas extra", "temas": ["Horas extra y jornada", "Sueldos y tabulador"]}, {"puesto": "Decorador(a)", "texto": "Debemos cobrar horas extras, las publicidades nacionales se abusan, y ya cuentan con nuestras horas extras desde un principio, no es que el rodaje se complicó y por eso se extiende, presupuestan y hacen planes de 18-20hs", "temas": ["Horas extra y jornada", "Sueldos y tabulador"]}, {"puesto": "Prop Master", "texto": "Horas extras, se entiende que no se pagan igual que a staff pero debería haber de parte de las productoras mas consideración a arte", "temas": ["Horas extra y jornada", "Sueldos y tabulador"]}, {"puesto": "Swings", "texto": "Deberían considerar buen sueldo por el horario que aveces se maneja y si no es así,pues que respeten 12 horas y lo demás que sean tiempo extra", "temas": ["Horas extra y jornada", "Sueldos y tabulador"]}, {"puesto": "Director(a) de Arte", "texto": "Box rental", "temas": ["Viáticos y taxi"]}, {"puesto": "Director(a) de Arte", "texto": "No", "temas": ["Otros"]}, {"puesto": "Onset", "texto": "Estos sueldos es importante mencionar las cualidades de cada empleado", "temas": ["Sueldos y tabulador", "Experiencia (senior/junior)"]}, {"puesto": "Decorador(a)", "texto": "Los pagos a 30/60 y 90 días deben de dejar de existir. Trabajo terminado trabajo pagado", "temas": ["Plazos de pago", "Sueldos y tabulador"]}, {"puesto": "Director(a) de Arte", "texto": "Ahora las pre producciones son cada vez más cortas", "temas": ["Horas extra y jornada"]}, {"puesto": "1er Asistente de Decoración", "texto": "También trabajo como diseñadora gráfica y los sueldos están super bajos, la última vez ganaba 9000 a la semana, y bajo a 8000", "temas": ["Sueldos y tabulador"]}, {"puesto": "Decorador(a)", "texto": "Debería de haber una casilla con el mínimo a cobrar.", "temas": ["Sueldos y tabulador"]}, {"puesto": "Diseñador Gráfico", "texto": "El diseñador gráfico debería tener siempre un seguro para su equipo por parte de la producción y el pago de su taxi ya que suelen enviarnos a bodegas muy lejanas y en zonas peligrosas. También creo que si las bodegas son tan lejos y en zonas peligrosas el diseñador debería trabajar en casa para evitar el traslado que siempre hacemos por nuestra cuenta junto con nuestros equipos arriesgándonos diariamente.\n\nOtro punto importante es que necesitamos que las bodegas en donde trabajamos sean espacios dignos con los servicios básicos y que no estén en mal estado. En mi experiencia siempre son edificios ya muy deteriorados y en más de dos ocaciones con daños estructurales. Para mí eso es muy peligroso estando en una zona altamente sísmica, todos los trabajadores de una producción merecemos un trato digno por parte de las productoras", "temas": ["Viáticos y taxi", "Condiciones y seguridad", "Experiencia (senior/junior)"]}, {"puesto": "Diseñador Gráfico", "texto": "El puesto de diseñador gráfico está muy castigado, los horarios son extensos y la paga muy baja en relación al trabajo que se realiza; en cuanto a apoyo económico para comida/pasajes - asignación de transporte, al estar en oficina nunca se nos han dado, cuestión que debería ser diferente ya que la mayoría del crew tiene acceso a catering, un transporte o en su caso viáticos. Nuestros traslados a bodegas y oficinas la mayoría de las veces es bastante complicado en cuanto a distancias y la necesidad de trasladar nuestros equipos de trabajo (laptop, tabletas, etc), que en su mayoría no se encuentran asegurados por las producciones.", "temas": ["Horas extra y jornada", "Viáticos y taxi", "Sueldos y tabulador", "Condiciones y seguridad"]}, {"puesto": "Diseñador Gráfico", "texto": "Los horarios son muy extensos considerando que como freelance no deberiamos tener horario solo funciones por cumplir, los sabados deberian ser libres", "temas": ["Horas extra y jornada"]}, {"puesto": "Decorador(a)", "texto": "Considero que se necesita una conversación amplia al respecto. No todos deben ni podemos ganar lo mismo, depende de la experiencia y el tipo de proyecto. Pero está muy bien que por algo se empiece, les agradezco mucho el esfuerzo.", "temas": ["Experiencia (senior/junior)"]}], "tema_counts": {"Agradecimiento": 4, "Horas extra y jornada": 13, "Sueldos y tabulador": 24, "Plazos de pago": 6, "Viáticos y taxi": 10, "Otros": 5, "Condiciones y seguridad": 3, "Experiencia (senior/junior)": 6}, "n_abiertas": 45};
+const D = __DATA__;
 document.getElementById('hTotal').textContent = D.total_resp;
 const money = n => n==null? '—' : '$'+Number(n).toLocaleString('es-MX');
 Chart.defaults.color='#9aa0b4'; Chart.defaults.font.family="-apple-system,Segoe UI,Roboto,sans-serif";
@@ -350,4 +542,9 @@ function render(){
 selP.addEventListener('change',render); selT.addEventListener('change',render); render();
 </script>
 </body>
-</html>
+</html>'''
+
+html = html.replace('__DATA__', DATA)
+OUT = os.environ.get('OUT_PATH','index.html')
+open(OUT,'w',encoding='utf-8').write(html)
+print('index.html generado:', len(html), 'bytes,', html.count('<canvas'), 'graficas')
