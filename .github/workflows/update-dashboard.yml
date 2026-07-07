@@ -1,0 +1,48 @@
+name: Actualizar dashboard
+
+# Corre solo cada dia a las 21:00 CDMX (UTC-6) = 03:00 UTC.
+# Tambien puedes lanzarlo a mano desde la pestana "Actions".
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+# Permite que el robot escriba (commit + push) en el repo.
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el repo
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Reconstruir el dashboard
+        # Opcion A: dejaste la URL dentro de build.py -> no necesitas esta linea env.
+        # Opcion B (recomendada): guarda la URL como Variable del repo
+        #   (Settings -> Secrets and variables -> Actions -> Variables -> New: CSV_URL)
+        #   y descomenta el bloque env de abajo.
+        # env:
+        #   CSV_URL: ${{ vars.CSV_URL }}
+        run: python build.py
+
+      - name: Publicar cambios si los hay
+        run: |
+          git config user.name "dashboard-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html
+          if git diff --staged --quiet; then
+            echo "Sin cambios en el dashboard hoy."
+          else
+            git commit -m "Actualizacion automatica del dashboard ($(date -u +'%Y-%m-%d %H:%M UTC'))"
+            git push
+          fi
