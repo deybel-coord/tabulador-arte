@@ -23,15 +23,40 @@ def norm_puesto(x):
          'Coordinadora':'Coordinador(a)', 'Coordinador(a)':'Coordinador(a)'}
     return m.get(x, x)
 
-# --- Deteccion por NOMBRE (robusta a cambios de posicion/columnas) ---
-# El formulario tiene la pregunta de puesto repetida (dos columnas); las combinamos.
-puesto_cols = [c for c in cols if str(c).strip().startswith('¿Cuál es tu puesto principal?')]
+# --- Deteccion AUTOMATICA de puesto (robusta a cambios de columnas) ---
+# El formulario reubica la pregunta de puesto con el tiempo, a veces en columnas
+# SIN nombre. Detectamos el puesto por VALOR: cualquier columna cuyos datos sean
+# mayormente etiquetas de puesto conocidas cuenta como columna de puesto.
+_named_puesto = [c for c in cols if str(c).strip().startswith('¿Cuál es tu puesto principal?')]
+_known = set()
+for c in cols:                                     # roles que tienen columna de sueldo
+    m = re.search(r'como (.*?)\? \(MXN\)', str(c))
+    if m: _known.add(norm_puesto(m.group(1)))
+for c in _named_puesto:                             # valores de las columnas nombradas
+    for v in df[c].dropna().astype(str).str.strip():
+        _known.add(norm_puesto(v))
+_known = {k for k in _known if k}
+
+puesto_cols = []
+for c in cols:
+    name = str(c).strip()
+    if name.startswith('¿Cuál es tu puesto principal?'):
+        puesto_cols.append(c); continue
+    if any(w in name.lower() for w in ('ganas', 'tabulador', 'debería', 'deberia', 'viático', 'viatico', 'pagado')):
+        continue
+    vals = df[c].dropna().astype(str).str.strip()
+    if len(vals) >= 3 and vals.map(lambda v: norm_puesto(v) in _known).mean() > 0.8:
+        puesto_cols.append(c)
 if not puesto_cols:
-    raise SystemExit('No encontre la columna de puesto ("¿Cuál es tu puesto principal?")')
+    raise SystemExit('No encontre ninguna columna de puesto')
+
+# columnas nombradas tienen prioridad sobre las sin nombre
+puesto_cols.sort(key=lambda c: str(c).strip().startswith('¿Cuál es tu puesto principal?'))
 _pser = None
-for pc in puesto_cols:                      # columnas posteriores tienen prioridad
-    _pser = df[pc] if _pser is None else df[pc].combine_first(_pser)
-df['PUESTO'] = _pser.map(norm_puesto)
+for pc in puesto_cols:
+    s = df[pc].map(norm_puesto)
+    _pser = s if _pser is None else s.combine_first(_pser)
+df['PUESTO'] = _pser
 
 _tipos_col = next((c for c in cols if 'tipos de proyecto' in str(c)), cols[1])
 df['TIPOS'] = df[_tipos_col].fillna('').apply(lambda s: [t.strip() for t in str(s).split(';') if t.strip()])
@@ -97,14 +122,14 @@ for c in pago_cols:
         if v in freq_order: pago_by_tipo[tp][grupo][v]+=1
 
 # ---------- SUELDOS ----------
-roles=['Decoradora','1er Asistente de Decoración','2do Asistente de Decoración','Comprador',
-       'Prop Master','Asistente de Prop','Coordinadora','Asistente de Coordinación','Onset',
-       'Swings','Apoyos','Diseñador(a) de Producción','Director(a) de Arte','Diseñador Gráfico']
 tipos=['Publicidad Nacional','Publicidad Service','Serie o Película']
 salary_map={}
+roles=[]                                    # se detectan AUTOMATICAMENTE de las columnas
 for idx,c in enumerate(cols):
     m=re.search(r'\[(.*?)\] ¿Cuánto ganas actualmente como (.*?)\? \(MXN\)', c)
-    if m: salary_map[(m.group(1),m.group(2))]=(c, cols[idx+1] if idx+1<len(cols) else None)
+    if m:
+        salary_map[(m.group(1),m.group(2))]=(c, cols[idx+1] if idx+1<len(cols) else None)
+        if m.group(2) not in roles: roles.append(m.group(2))
 def role_norm(r): return {'Decoradora':'Decorador(a)','Coordinadora':'Coordinador(a)'}.get(r,r)
 
 # base de redondeo por rol (día vs proyecto)
