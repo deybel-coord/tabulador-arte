@@ -223,6 +223,11 @@ data={'total_resp':total_resp,'puesto_counts':puesto_counts,'tipo_counts':tipo_c
       'vi_stats':vi_stats,'vi_local_puesto':vi_local_puesto,'vi_taxi_puesto':vi_taxi_puesto,
       'pago_freq':pago_freq,'pago_by_tipo':pago_by_tipo,'abiertas':abiertas,'tema_counts':tema_counts,'n_abiertas':len(abiertas)}
 
+# ===== PROPUESTA TABULADOR (incrustado; A=Junior / B=Senior) =====
+# Para actualizarlo, reemplaza este diccionario TABULADOR con la nueva version.
+TABULADOR = {'categorias': [{'nombre': 'Publicidad Nacional', 'unidad': 'diario'}, {'nombre': 'Publicidad Service', 'unidad': 'diario'}, {'nombre': 'Serie Nac', 'unidad': 'semanal'}, {'nombre': 'Serie Int', 'unidad': 'semanal'}, {'nombre': 'Película Nac', 'unidad': 'semanal'}, {'nombre': 'Película Int', 'unidad': 'semanal'}], 'puestos': [{'nombre': 'Diseñador(a)  de Producción', 'pendiente': False, 'valores': {'Publicidad Nacional': {'jr': 39000, 'sr': 45000, 'unidad': 'diario'}, 'Publicidad Service': {'jr': 45000, 'sr': 45000, 'unidad': 'diario'}, 'Serie Nac': {'jr': 40000, 'sr': 45000, 'unidad': 'semanal'}, 'Serie Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Nac': {'jr': 40000, 'sr': 45000, 'unidad': 'semanal'}, 'Película Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}}}, {'nombre': 'Director(a) de Arte', 'pendiente': False, 'valores': {'Publicidad Nacional': {'jr': 22000, 'sr': 30000, 'unidad': 'diario'}, 'Publicidad Service': {'jr': 25000, 'sr': 29000, 'unidad': 'diario'}, 'Serie Nac': {'jr': 25000, 'sr': 30000, 'unidad': 'semanal'}, 'Serie Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Nac': {'jr': 25000, 'sr': None, 'unidad': 'semanal'}, 'Película Int': {'jr': 45000, 'sr': None, 'unidad': 'semanal'}}}, {'nombre': 'Set designer', 'pendiente': False, 'valores': {'Publicidad Nacional': {'jr': 19000, 'sr': 22000, 'unidad': 'diario'}, 'Publicidad Service': {'jr': 20000, 'sr': 23000, 'unidad': 'diario'}, 'Serie Nac': {'jr': 20000, 'sr': 21000, 'unidad': 'semanal'}, 'Serie Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Nac': {'jr': 22000, 'sr': None, 'unidad': 'semanal'}, 'Película Int': {'jr': 30000, 'sr': None, 'unidad': 'semanal'}}}, {'nombre': 'Coordinador(a) Arte', 'pendiente': False, 'valores': {'Publicidad Nacional': {'jr': 15000, 'sr': 15000, 'unidad': 'diario'}, 'Publicidad Service': {'jr': 16000, 'sr': 17000, 'unidad': 'diario'}, 'Serie Nac': {'jr': 15000, 'sr': 17000, 'unidad': 'semanal'}, 'Serie Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Nac': {'jr': 15000, 'sr': None, 'unidad': 'semanal'}, 'Película Int': {'jr': 20000, 'sr': None, 'unidad': 'semanal'}}}, {'nombre': 'Asistente de coordinación', 'pendiente': False, 'valores': {'Publicidad Nacional': {'jr': 9000, 'sr': 10000, 'unidad': 'diario'}, 'Publicidad Service': {'jr': 10000, 'sr': 12000, 'unidad': 'diario'}, 'Serie Nac': {'jr': 8000, 'sr': 11000, 'unidad': 'semanal'}, 'Serie Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Nac': {'jr': 7500, 'sr': None, 'unidad': 'semanal'}, 'Película Int': {'jr': 13000, 'sr': None, 'unidad': 'semanal'}}}, {'nombre': 'Decorador(a)', 'pendiente': False, 'valores': {'Publicidad Nacional': {'jr': 20000, 'sr': 22000, 'unidad': 'diario'}, 'Publicidad Service': {'jr': 22000, 'sr': 23000, 'unidad': 'diario'}, 'Serie Nac': {'jr': 20000, 'sr': 22000, 'unidad': 'semanal'}, 'Serie Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Nac': {'jr': 20000, 'sr': None, 'unidad': 'semanal'}, 'Película Int': {'jr': 30000, 'sr': None, 'unidad': 'semanal'}}}, {'nombre': '1er Asistente de decoración', 'pendiente': False, 'valores': {'Publicidad Nacional': {'jr': 12000, 'sr': 14000, 'unidad': 'diario'}, 'Publicidad Service': {'jr': 13000, 'sr': 15000, 'unidad': 'diario'}, 'Serie Nac': {'jr': 13000, 'sr': 15000, 'unidad': 'semanal'}, 'Serie Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Nac': {'jr': 12000, 'sr': None, 'unidad': 'semanal'}, 'Película Int': {'jr': 15000, 'sr': None, 'unidad': 'semanal'}}}, {'nombre': '2do Asistente de decoración', 'pendiente': True, 'valores': {'Publicidad Nacional': {'jr': None, 'sr': None, 'unidad': 'diario'}, 'Publicidad Service': {'jr': None, 'sr': None, 'unidad': 'diario'}, 'Serie Nac': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Serie Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Nac': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}}}, {'nombre': 'Comprador', 'pendiente': False, 'valores': {'Publicidad Nacional': {'jr': 12000, 'sr': 15000, 'unidad': 'diario'}, 'Publicidad Service': {'jr': 12000, 'sr': 15000, 'unidad': 'diario'}, 'Serie Nac': {'jr': 9000, 'sr': 12000, 'unidad': 'semanal'}, 'Serie Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Nac': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Int': {'jr': 13000, 'sr': None, 'unidad': 'semanal'}}}, {'nombre': 'Prop Master', 'pendiente': False, 'valores': {'Publicidad Nacional': {'jr': 12000, 'sr': 15000, 'unidad': 'diario'}, 'Publicidad Service': {'jr': 14000, 'sr': 17000, 'unidad': 'diario'}, 'Serie Nac': {'jr': 15000, 'sr': 19000, 'unidad': 'semanal'}, 'Serie Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Nac': {'jr': 15000, 'sr': None, 'unidad': 'semanal'}, 'Película Int': {'jr': 25000, 'sr': None, 'unidad': 'semanal'}}}, {'nombre': 'Asistente de Prop', 'pendiente': False, 'valores': {'Publicidad Nacional': {'jr': 10000, 'sr': 12000, 'unidad': 'diario'}, 'Publicidad Service': {'jr': 10000, 'sr': 12000, 'unidad': 'diario'}, 'Serie Nac': {'jr': 11000, 'sr': 14000, 'unidad': 'semanal'}, 'Serie Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Nac': {'jr': 9000, 'sr': None, 'unidad': 'semanal'}, 'Película Int': {'jr': 15000, 'sr': None, 'unidad': 'semanal'}}}, {'nombre': 'Diseñador(a)  Gráfico', 'pendiente': False, 'valores': {'Publicidad Nacional': {'jr': 10000, 'sr': 15000, 'unidad': 'diario'}, 'Publicidad Service': {'jr': 12000, 'sr': 15000, 'unidad': 'diario'}, 'Serie Nac': {'jr': 13000, 'sr': 16000, 'unidad': 'semanal'}, 'Serie Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Nac': {'jr': 12000, 'sr': None, 'unidad': 'semanal'}, 'Película Int': {'jr': 13000, 'sr': None, 'unidad': 'semanal'}}}, {'nombre': 'Asistente de Diseñador Gráfico', 'pendiente': False, 'valores': {'Publicidad Nacional': {'jr': None, 'sr': None, 'unidad': 'diario'}, 'Publicidad Service': {'jr': None, 'sr': None, 'unidad': 'diario'}, 'Serie Nac': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Serie Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Nac': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Int': {'jr': 12000, 'sr': None, 'unidad': 'semanal'}}}, {'nombre': 'Onset', 'pendiente': False, 'valores': {'Publicidad Nacional': {'jr': 3500, 'sr': 3800, 'unidad': 'diario'}, 'Publicidad Service': {'jr': 2500, 'sr': 4000, 'unidad': 'diario'}, 'Serie Nac': {'jr': 15000, 'sr': 18000, 'unidad': 'semanal'}, 'Serie Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Nac': {'jr': 12000, 'sr': None, 'unidad': 'semanal'}, 'Película Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}}}, {'nombre': 'On set Bilingüe', 'pendiente': False, 'valores': {'Publicidad Nacional': {'jr': None, 'sr': None, 'unidad': 'diario'}, 'Publicidad Service': {'jr': 4000, 'sr': None, 'unidad': 'diario'}, 'Serie Nac': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Serie Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Nac': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Int': {'jr': 13000, 'sr': None, 'unidad': 'semanal'}}}, {'nombre': 'Asistente On set', 'pendiente': True, 'valores': {'Publicidad Nacional': {'jr': None, 'sr': None, 'unidad': 'diario'}, 'Publicidad Service': {'jr': None, 'sr': None, 'unidad': 'diario'}, 'Serie Nac': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Serie Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Nac': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}}}, {'nombre': 'Leadman', 'pendiente': False, 'valores': {'Publicidad Nacional': {'jr': 3000, 'sr': 3000, 'unidad': 'diario'}, 'Publicidad Service': {'jr': 3000, 'sr': 3000, 'unidad': 'diario'}, 'Serie Nac': {'jr': 18000, 'sr': 18000, 'unidad': 'semanal'}, 'Serie Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Nac': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Int': {'jr': 14000, 'sr': None, 'unidad': 'semanal'}}}, {'nombre': 'Swings', 'pendiente': False, 'valores': {'Publicidad Nacional': {'jr': 1800, 'sr': 2500, 'unidad': 'diario'}, 'Publicidad Service': {'jr': 2000, 'sr': 2500, 'unidad': 'diario'}, 'Serie Nac': {'jr': 8000, 'sr': 12000, 'unidad': 'semanal'}, 'Serie Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Nac': {'jr': 9000, 'sr': None, 'unidad': 'semanal'}, 'Película Int': {'jr': 9900, 'sr': None, 'unidad': 'semanal'}}}, {'nombre': 'Apoyos', 'pendiente': False, 'valores': {'Publicidad Nacional': {'jr': 1200, 'sr': 1200, 'unidad': 'diario'}, 'Publicidad Service': {'jr': 1100, 'sr': 1500, 'unidad': 'diario'}, 'Serie Nac': {'jr': 6000, 'sr': 7200, 'unidad': 'semanal'}, 'Serie Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Nac': {'jr': 7200, 'sr': None, 'unidad': 'semanal'}, 'Película Int': {'jr': 7200, 'sr': None, 'unidad': 'semanal'}}}, {'nombre': 'Carpinteros', 'pendiente': True, 'valores': {'Publicidad Nacional': {'jr': None, 'sr': None, 'unidad': 'diario'}, 'Publicidad Service': {'jr': None, 'sr': None, 'unidad': 'diario'}, 'Serie Nac': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Serie Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Nac': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}}}, {'nombre': 'Pintores', 'pendiente': True, 'valores': {'Publicidad Nacional': {'jr': None, 'sr': None, 'unidad': 'diario'}, 'Publicidad Service': {'jr': None, 'sr': None, 'unidad': 'diario'}, 'Serie Nac': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Serie Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Nac': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}}}, {'nombre': 'Leadman Construcciòn', 'pendiente': True, 'valores': {'Publicidad Nacional': {'jr': None, 'sr': None, 'unidad': 'diario'}, 'Publicidad Service': {'jr': None, 'sr': None, 'unidad': 'diario'}, 'Serie Nac': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Serie Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Nac': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}}}, {'nombre': 'Comprador Construcciòn', 'pendiente': True, 'valores': {'Publicidad Nacional': {'jr': None, 'sr': None, 'unidad': 'diario'}, 'Publicidad Service': {'jr': None, 'sr': None, 'unidad': 'diario'}, 'Serie Nac': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Serie Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Nac': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}}}, {'nombre': 'Coordinador(a) Construcciòn', 'pendiente': True, 'valores': {'Publicidad Nacional': {'jr': None, 'sr': None, 'unidad': 'diario'}, 'Publicidad Service': {'jr': None, 'sr': None, 'unidad': 'diario'}, 'Serie Nac': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Serie Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Nac': {'jr': None, 'sr': None, 'unidad': 'semanal'}, 'Película Int': {'jr': None, 'sr': None, 'unidad': 'semanal'}}}]}
+data['tabulador'] = TABULADOR
+
 import json
 d = data
 DATA = json.dumps(d, ensure_ascii=False)
@@ -269,6 +274,13 @@ html = r'''<!DOCTYPE html>
   .pie-wrap{position:relative;height:150px}
   @media(max-width:560px){.pies{grid-template-columns:1fr}}
   .up{color:var(--green)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.3px}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  td.puesto{font-weight:600}
+  .pend{color:var(--muted);font-style:italic}
+  .jr{color:var(--accent2)} .sr{color:var(--accent)}
   .badge{display:inline-block;background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:2px 10px;font-size:11px;color:var(--muted);margin-left:6px}
   .quote{background:var(--panel2);border-left:3px solid var(--accent);border-radius:8px;padding:12px 14px;margin-bottom:10px}
   .quote .p{font-size:11.5px;color:var(--accent2);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
@@ -296,6 +308,7 @@ html = r'''<!DOCTYPE html>
   <div class="tab active" data-p="dash">Dashboard general</div>
   <div class="tab" data-p="viaticos">Análisis de viáticos</div>
   <div class="tab" data-p="abiertas">Respuestas abiertas</div>
+  <div class="tab" data-p="tabulador">Propuesta tabulador</div>
 </div>
 <main>
 
@@ -430,6 +443,28 @@ html = r'''<!DOCTYPE html>
     </div>
     <div class="cnt" id="qCount"></div>
     <div id="quotes"></div>
+  </div>
+</section>
+
+<!-- ===== HOJA 4: PROPUESTA TABULADOR ===== -->
+<section class="page" id="tabulador">
+  <div class="note" style="margin-bottom:14px">Propuesta de tabulador por puesto, con dos niveles: <b class="jr">Junior</b> (base) y <b class="sr">Senior</b> (con experiencia). Publicidad se paga <b>por día</b>; Serie y Película <b>por semana</b>. Los puestos marcados <span class="pend">por definir</span> aún no tienen cifras.</div>
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px">
+      <h2 style="margin:0">Comparativo Junior vs. Senior</h2>
+      <div><label class="fl">Categoría:</label><select id="fCat"></select></div>
+    </div>
+    <div class="chart-wrap tall"><canvas id="chTab"></canvas></div>
+    <div class="legend-row"><span><span class="dot" style="background:#5ed0ff"></span>Junior</span><span><span class="dot" style="background:#ff6b9d"></span>Senior</span></div>
+    <div class="note" id="tabUnidad"></div>
+  </div>
+  <div class="card" style="margin-bottom:16px">
+    <h2>Sueldo diario — Publicidad (MXN/día)</h2>
+    <div style="overflow-x:auto"><table id="tblDiario"></table></div>
+  </div>
+  <div class="card">
+    <h2>Sueldo semanal — Serie y Película (MXN/semana)</h2>
+    <div style="overflow-x:auto"><table id="tblSemanal"></table></div>
   </div>
 </section>
 
@@ -577,6 +612,43 @@ function render(){
   });
 }
 selP.addEventListener('change',render); selT.addEventListener('change',render); render();
+
+// ===== HOJA 4 TABULADOR =====
+const TAB=D.tabulador;const cats=TAB.categorias.map(c=>c.nombre);
+const catUnidad=Object.fromEntries(TAB.categorias.map(c=>[c.nombre,c.unidad]));
+const fCat=document.getElementById('fCat');
+cats.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;fCat.appendChild(o);});
+let chTab;
+function drawTab(cat){
+  const rows=TAB.puestos.filter(p=>p.valores[cat]&&(p.valores[cat].jr!=null||p.valores[cat].sr!=null));
+  const u=catUnidad[cat]==='diario'?'/día':'/semana';
+  document.getElementById('tabUnidad').innerHTML='Categoría <b>'+cat+'</b> · '+(catUnidad[cat]==='diario'?'sueldo por día':'sueldo por semana')+'. Solo se grafican puestos con cifras.';
+  if(chTab)chTab.destroy();
+  chTab=new Chart(document.getElementById('chTab'),{type:'bar',
+    data:{labels:rows.map(p=>p.nombre),datasets:[
+      {label:'Junior',data:rows.map(p=>p.valores[cat].jr),backgroundColor:'#5ed0ff',borderRadius:5},
+      {label:'Senior',data:rows.map(p=>p.valores[cat].sr),backgroundColor:'#ff6b9d',borderRadius:5}]},
+    options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+': '+money(c.raw)+u}}},
+      scales:{x:{grid:{color:GRID},ticks:{callback:v=>'$'+(v/1000)+'k'}},y:{grid:{display:false}}}}});
+}
+drawTab(cats[0]);
+fCat.addEventListener('change',()=>drawTab(fCat.value));
+function cellT(v,cls){return v==null?'<td class="num pend">—</td>':'<td class="num '+cls+'">'+money(v)+'</td>';}
+function buildTable(id,catList){
+  const el=document.getElementById(id);
+  let h='<thead><tr><th>Puesto</th>';
+  catList.forEach(c=>{h+='<th class="jr" style="text-align:right">'+c+' · Jr</th><th class="sr" style="text-align:right">'+c+' · Sr</th>';});
+  h+='</tr></thead><tbody>';
+  TAB.puestos.forEach(p=>{
+    if(p.pendiente){h+='<tr><td class="puesto">'+p.nombre+'</td><td class="pend" colspan="'+(catList.length*2)+'">Por definir</td></tr>';return;}
+    h+='<tr><td class="puesto">'+p.nombre+'</td>';
+    catList.forEach(c=>{const v=p.valores[c]||{};h+=cellT(v.jr,'jr')+cellT(v.sr,'sr');});
+    h+='</tr>';
+  });
+  h+='</tbody>';el.innerHTML=h;
+}
+buildTable('tblDiario',['Publicidad Nacional','Publicidad Service']);
+buildTable('tblSemanal',['Serie Nac','Serie Int','Película Nac','Película Int']);
 </script>
 </body>
 </html>'''
